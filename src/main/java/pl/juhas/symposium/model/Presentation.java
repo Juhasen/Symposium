@@ -8,6 +8,7 @@ import lombok.With;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @With
@@ -32,9 +33,14 @@ public class Presentation {
     @JoinColumn(name = "conferenceHall_id", referencedColumnName = "id")
     private ConferenceHall conferenceHall;
 
-    @OneToOne
-    @JoinColumn(name = "participant_id", referencedColumnName = "id")
-    private Participant participant;
+    @ManyToMany
+    @JoinTable(
+            name = "presentation_participants",
+            joinColumns = @JoinColumn(name = "presentation_id"),
+            inverseJoinColumns = @JoinColumn(name = "participant_id")
+    )
+    private List<Participant> participants;
+
 
 
 }

@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.domain.Pageable;
+import pl.juhas.symposium.dto.SpeakerStatsDTO;
 import pl.juhas.symposium.enums.Country;
 import pl.juhas.symposium.enums.Role;
 import pl.juhas.symposium.model.*;
@@ -14,7 +16,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 
@@ -43,9 +44,9 @@ class SymposiumApplicationTests {
     private Participant participant;
     private Presentation presentation;
 
-    private List<Role> roles = new ArrayList<>();
+    private final List<Role> roles = new ArrayList<>();
 
-    private List<Country> countries = new ArrayList<>();
+    private final List<Country> countries = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
@@ -87,14 +88,14 @@ class SymposiumApplicationTests {
         participant.setFirstName("John");
         participant.setLastName("Doe");
         participant.setEmail("john.doe@gmail.com");
-        participant.setRole(Role.DOCTOR);
+        participant.setRole(Role.SPEAKER);
         participant.setCountry(Country.POLAND);
         participantRepository.save(participant);
 
         presentation = new Presentation();
-        presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 10, 0));
+        presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 9, 0));
         presentation.setConferenceHall(conferenceHall);
-        presentation.setParticipant(participant);
+        presentation.setParticipants(List.of(participant));
         presentation.setTopic(topic);
         presentationRepository.save(presentation);
 
@@ -110,6 +111,7 @@ class SymposiumApplicationTests {
         log.info("All repositories are loaded successfully.");
     }
 
+    //1. Wyświetl listę wszystkich uczestników sympozjum.
     @Test
     void testShowAllParticipants() {
         for (int i = 0; i < 5; i++) {
@@ -130,6 +132,7 @@ class SymposiumApplicationTests {
         log.info("Test for showing all participants passed successfully.");
     }
 
+    //2. Wyświetl listę uczestników z podziałem na lekarzy, studentów, organizatorów, itp.
     @Test
     void testShowParticipantsGroupedByRole() {
         for (int i = 0; i < 23; i++) {
@@ -162,6 +165,7 @@ class SymposiumApplicationTests {
         });
     }
 
+    //3. Wyświetl listę z podziałem na kraj pochodzenia.
     @Test
     void testShowParticipantsGroupedByCountry() {
         for (int i = 0; i < 23; i++) {
@@ -187,6 +191,120 @@ class SymposiumApplicationTests {
                     log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
         });
     }
+
+    //4. Wyświetl listę tematów prezentacji.
+    @Test
+    void testShowAllPresentationTopics(){
+        for (int i = 0; i < 5; i++) {
+            Topic topic = new Topic();
+            topic.setName("Topic" + i);
+            topicRepository.save(topic);
+            Presentation presentation = new Presentation();
+            presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 10 + i, 0));
+            presentation.setConferenceHall(conferenceHall);
+            presentation.setParticipants(List.of(participant));
+            presentation.setTopic(topic);
+            presentationRepository.save(presentation);
+        }
+
+        List<Presentation> presentations = presentationRepository.findAll();
+        assertThat(presentations).isNotEmpty();
+
+        presentations.forEach(presentation ->
+                log.info("Presentation: {} at {}", presentation.getTopic().getName(), presentation.getStartTime()));
+    }
+
+    //5. Wyświetl użytkownika z największą liczbą prezentacji.
+    @Test
+    void testFindParticipantWithMostPresentations() {
+        // Add 5 additional presentations with John Doe as a speaker
+        for (int i = 0; i < 5; i++) {
+            Topic topic = new Topic();
+            topic.setName("Topic " + i);
+            topicRepository.save(topic);
+
+            Presentation presentation = new Presentation();
+            presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 10 + i, 0));
+            presentation.setConferenceHall(conferenceHall);
+            presentation.setTopic(topic);
+
+            // Create 5 STUDENT participants
+            List<Participant> students = new ArrayList<>();
+            for (int j = 0; j < 5; j++) {
+                Participant student = new Participant();
+                student.setFirstName("Student" + i + "_" + j);
+                student.setLastName("Last" + j);
+                student.setEmail("student" + i + "_" + j + "@example.com");
+                student.setRole(Role.STUDENT);
+                student.setCountry(participant.getCountry()); // or any Country
+                participantRepository.save(student);
+                students.add(student);
+            }
+
+            // Add John Doe (speaker) and 5 students to the presentation
+            List<Participant> allParticipants = new ArrayList<>(students);
+            allParticipants.add(participant); // John Doe
+
+            presentation.setParticipants(allParticipants);
+            presentationRepository.save(presentation);
+        }
+
+        // Now John Doe has 1 (from @BeforeEach) + 5 = 6 presentations
+
+        List<SpeakerStatsDTO> topSpeakers = presentationRepository.findTopSpeaker(Pageable.ofSize(10));
+
+        assertThat(topSpeakers).isNotEmpty();
+        topSpeakers.forEach(speaker ->
+                log.info("Speaker: {} {} with {} presentations", speaker.firstName(), speaker.lastName(), speaker.presentationCount()));
+        SpeakerStatsDTO top = topSpeakers.getFirst();
+        assertThat(top.firstName()).isEqualTo("John");
+        assertThat(top.lastName()).isEqualTo("Doe");
+        assertThat(top.presentationCount()).isEqualTo(6L);
+    }
+
+    //6. Wyświetl liczbę prezentacji w każdej sali.
+    @Test
+    void testCountPresentationsInEachHall() {
+        // Existing halls and presentations setup
+        for (int i = 0; i < 5; i++) {
+            Topic topic = new Topic();
+            topic.setName("Topic" + i);
+            topicRepository.save(topic);
+            Presentation presentation = new Presentation();
+            presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 10 + i, 0));
+            presentation.setConferenceHall(conferenceHall);
+            presentation.setParticipants(List.of(participant));
+            presentation.setTopic(topic);
+            presentationRepository.save(presentation);
+        }
+
+        // Create one more conference hall with 3 presentations
+        ConferenceHall newHall = new ConferenceHall();
+        newHall.setName("New Conference Hall");
+        conferenceHallRepository.save(newHall);
+
+        for (int i = 0; i < 3; i++) {
+            Topic topic = new Topic();
+            topic.setName("Topic" + (i + 5));
+            topicRepository.save(topic);
+            Presentation presentation = new Presentation();
+            presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 15 + i, 0));
+            presentation.setConferenceHall(newHall);
+            presentation.setParticipants(List.of(participant));
+            presentation.setTopic(topic);
+            presentationRepository.save(presentation);
+        }
+
+        List<ConferenceHall> conferenceHalls = conferenceHallRepository.findAll();
+        assertThat(conferenceHalls).isNotEmpty();
+
+        conferenceHalls.forEach(hall -> {
+            long count = presentationRepository.countPresentationsByConferenceHall(hall);
+            log.info("Conference Hall: {} has {} presentations", hall.getName(), count);
+        });
+    }
+
+
 
 
 }
