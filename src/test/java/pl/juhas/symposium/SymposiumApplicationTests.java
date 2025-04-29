@@ -13,6 +13,9 @@ import pl.juhas.symposium.repository.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,12 +126,66 @@ class SymposiumApplicationTests {
         assertThat(participants.size()).isEqualTo(6);
         assertThat(participants.getFirst().getFirstName()).isEqualTo("John");
         participants.forEach(participant ->
-                log.info("Participant: " + participant.getFirstName() +
-                        " " +
-                        participant.getLastName() +
-                        " " +
-                        participant.getEmail()));
+                log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
         log.info("Test for showing all participants passed successfully.");
+    }
+
+    @Test
+    void testShowParticipantsGroupedByRole() {
+        for (int i = 0; i < 23; i++) {
+            Participant participant = new Participant();
+            participant.setFirstName("Participant" + i);
+            participant.setLastName("LastName" + i);
+            participant.setEmail("participant" + i + "@gmail.com");
+            participant.setRole(roles.get(i % 5));
+            participant.setCountry(countries.get(i % 5));
+            participantRepository.save(participant);
+        }
+
+        List<Object[]> participants = participantRepository.findAllParticipantsWithRoles();
+
+        // Mapowanie i grupowanie uczestników według ról
+        Map<Role, List<Participant>> groupedByRole = participants.stream()
+                .collect(Collectors.groupingBy(
+                        obj -> (Role) obj[0], // Grupowanie według roli (pierwszy element tablicy)
+                        Collectors.mapping(
+                                obj -> (Participant) obj[1], // Mapowanie na uczestnika (drugi element tablicy)
+                                Collectors.toList()
+                        )
+                ));
+
+        // Wyświetlanie wyników
+        groupedByRole.forEach((role, participantList) -> {
+            log.info("Role: {}", role);
+            participantList.forEach(participant ->
+                    log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
+        });
+    }
+
+    @Test
+    void testShowParticipantsGroupedByCountry() {
+        for (int i = 0; i < 23; i++) {
+            Participant participant = new Participant();
+            participant.setFirstName("Participant" + i);
+            participant.setLastName("LastName" + i);
+            participant.setEmail("participant" + i + "@gmail.com");
+            participant.setRole(roles.get(i % 5));
+            participant.setCountry(countries.get(i % 5));
+            participantRepository.save(participant);
+        }
+
+        List<Participant> participants = participantRepository.findAll();
+
+        // Mapowanie i grupowanie uczestników według krajów
+        Map<Country, List<Participant>> groupedByCountry = participants.stream()
+                .collect(Collectors.groupingBy(Participant::getCountry));
+
+        // Wyświetlanie wyników
+        groupedByCountry.forEach((country, participantList) -> {
+            log.info("Country: {}", country);
+            participantList.forEach(participant ->
+                    log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
+        });
     }
 
 
