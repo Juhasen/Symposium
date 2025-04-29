@@ -29,7 +29,7 @@ public class Presentation {
     private Topic topic;
 
     @ManyToOne
-    @JoinColumn(name = "ConferenceHall_id", referencedColumnName = "id")
+    @JoinColumn(name = "conferenceHall_id", referencedColumnName = "id")
     private ConferenceHall conferenceHall;
 
     @OneToOne
