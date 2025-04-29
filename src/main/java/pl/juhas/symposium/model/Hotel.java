@@ -1,4 +1,4 @@
-﻿package pl.juhas.symposium.model;
+package pl.juhas.symposium.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
