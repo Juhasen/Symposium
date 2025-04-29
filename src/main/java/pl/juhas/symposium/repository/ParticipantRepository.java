@@ -1,4 +1,4 @@
-﻿package pl.juhas.symposium.repository;
+package pl.juhas.symposium.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import pl.juhas.symposium.enums.Country;

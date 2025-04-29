@@ -1,4 +1,4 @@
-﻿package pl.juhas.symposium.enums;
+package pl.juhas.symposium.enums;
 
 public enum Country {
     POLAND,
