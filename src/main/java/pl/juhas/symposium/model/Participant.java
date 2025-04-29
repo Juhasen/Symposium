@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.With;
+import pl.juhas.symposium.enums.Country;
 import pl.juhas.symposium.enums.Role;
 
 @Data
@@ -31,5 +32,7 @@ public class Participant {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Enumerated(EnumType.STRING)
+    private Country country;
 
 }
