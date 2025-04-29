@@ -31,4 +31,5 @@ public class Participant {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+
 }
