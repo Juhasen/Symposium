@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.With;
 import pl.juhas.symposium.enums.Country;
 import pl.juhas.symposium.enums.Role;
+import java.util.List;
 
 @Data
 @With
@@ -34,5 +35,8 @@ public class Participant {
 
     @Enumerated(EnumType.STRING)
     private Country country;
+
+    @ManyToMany(mappedBy = "participants")
+    List<Presentation> presentations;
 
 }

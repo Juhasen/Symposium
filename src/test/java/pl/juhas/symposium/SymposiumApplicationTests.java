@@ -50,8 +50,6 @@ class SymposiumApplicationTests {
 
     @BeforeEach
     void setUp() {
-        log.info("Setting up the test environment.");
-
         roles.add(Role.STUDENT);
         roles.add(Role.DOCTOR);
         roles.add(Role.SPEAKER);
@@ -98,8 +96,6 @@ class SymposiumApplicationTests {
         presentation.setParticipants(List.of(participant));
         presentation.setTopic(topic);
         presentationRepository.save(presentation);
-
-        log.info("Test environment set up successfully.");
     }
 
     @Test
@@ -114,6 +110,7 @@ class SymposiumApplicationTests {
     //1. Wyświetl listę wszystkich uczestników sympozjum.
     @Test
     void testShowAllParticipants() {
+        log.info("------------testShowAllParticipants------------");
         for (int i = 0; i < 5; i++) {
             Participant participant = new Participant();
             participant.setFirstName("Participant" + i);
@@ -135,6 +132,7 @@ class SymposiumApplicationTests {
     //2. Wyświetl listę uczestników z podziałem na lekarzy, studentów, organizatorów, itp.
     @Test
     void testShowParticipantsGroupedByRole() {
+        log.info("------------testShowParticipantsGroupedByRole------------");
         for (int i = 0; i < 23; i++) {
             Participant participant = new Participant();
             participant.setFirstName("Participant" + i);
@@ -168,6 +166,7 @@ class SymposiumApplicationTests {
     //3. Wyświetl listę z podziałem na kraj pochodzenia.
     @Test
     void testShowParticipantsGroupedByCountry() {
+        log.info("------------testShowParticipantsGroupedByCountry------------");
         for (int i = 0; i < 23; i++) {
             Participant participant = new Participant();
             participant.setFirstName("Participant" + i);
@@ -195,6 +194,7 @@ class SymposiumApplicationTests {
     //4. Wyświetl listę tematów prezentacji.
     @Test
     void testShowAllPresentationTopics(){
+        log.info("------------testShowAllPresentationTopics------------");
         for (int i = 0; i < 5; i++) {
             Topic topic = new Topic();
             topic.setName("Topic" + i);
@@ -217,6 +217,7 @@ class SymposiumApplicationTests {
     //5. Wyświetl użytkownika z największą liczbą prezentacji.
     @Test
     void testFindParticipantWithMostPresentations() {
+        log.info("------------testFindParticipantWithMostPresentations------------");
         // Add 5 additional presentations with John Doe as a speaker
         for (int i = 0; i < 5; i++) {
             Topic topic = new Topic();
@@ -265,6 +266,7 @@ class SymposiumApplicationTests {
     //6. Wyświetl liczbę prezentacji w każdej sali.
     @Test
     void testCountPresentationsInEachHall() {
+        log.info("------------testCountPresentationsInEachHall------------");
         // Existing halls and presentations setup
         for (int i = 0; i < 5; i++) {
             Topic topic = new Topic();

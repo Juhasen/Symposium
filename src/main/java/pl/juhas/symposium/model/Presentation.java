@@ -22,15 +22,13 @@ public class Presentation {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm")
-    private LocalDateTime startTime;
 
     @OneToOne
     @JoinColumn(name = "topic_id", referencedColumnName = "id", unique = true) // One topic can be presented only once
     private Topic topic;
 
     @ManyToOne
-    @JoinColumn(name = "conferenceHall_id", referencedColumnName = "id")
+    @JoinColumn(name = "conference_hall_id", referencedColumnName = "id")
     private ConferenceHall conferenceHall;
 
     @ManyToMany
@@ -43,4 +41,6 @@ public class Presentation {
 
 
 
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm")
+    private LocalDateTime startTime;
 }

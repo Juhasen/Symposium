@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.With;
 
+import java.util.List;
+
 @Data
 @With
 @AllArgsConstructor
@@ -20,5 +22,8 @@ public class Topic {
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    @OneToMany
+    List<Participant> presenters;
 
 }

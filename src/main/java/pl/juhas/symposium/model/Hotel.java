@@ -27,6 +27,4 @@ public class Hotel {
 
     @OneToMany(mappedBy = "hotel", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<ConferenceHall> conferenceHalls;
-
-
 }
