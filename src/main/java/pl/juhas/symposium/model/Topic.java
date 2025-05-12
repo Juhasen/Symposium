@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.With;
 
-import java.util.List;
+import java.util.Set;
 
 @Data
 @With
@@ -20,10 +20,15 @@ public class Topic {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = false, unique = true)
     private String name;
 
-    @OneToMany
-    List<Participant> presenters;
-
+    @ManyToMany
+    @JoinTable(
+            name = "topic_presenters",
+            joinColumns = @JoinColumn(name = "topic_id"),
+            inverseJoinColumns = @JoinColumn(name = "participant_id"),
+            uniqueConstraints = @UniqueConstraint(columnNames = {"topic_id", "participant_id"})
+    )
+    private Set<Participant> presenters;
 }

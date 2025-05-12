@@ -15,7 +15,9 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "presentation")
+@Table(name = "presentation", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"topic_id", "start_time"}),
+        @UniqueConstraint(columnNames = {"conference_hall_id", "start_time"})})
 public class Presentation {
 
     @Id
@@ -40,7 +42,7 @@ public class Presentation {
     private List<Participant> participants;
 
 
-
+    @JoinColumn(name = "start_time")
     @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm")
     private LocalDateTime startTime;
 }

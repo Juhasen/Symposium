@@ -1,11 +1,15 @@
 package pl.juhas.symposium;
 
+import jakarta.annotation.security.RolesAllowed;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Pageable;
+import pl.juhas.symposium.dto.ParticipantDTO;
+import pl.juhas.symposium.dto.PresentationDTO;
 import pl.juhas.symposium.dto.SpeakerStatsDTO;
 import pl.juhas.symposium.enums.Country;
 import pl.juhas.symposium.enums.Role;
@@ -13,13 +17,12 @@ import pl.juhas.symposium.model.*;
 import pl.juhas.symposium.repository.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @Slf4j
 @SpringBootTest
@@ -46,15 +49,15 @@ class SymposiumApplicationTests {
 
     private final List<Role> roles = new ArrayList<>();
 
+    private final int ROLES_COUNT = 3;
+    private final int COUNTRIES_COUNT = 5;
     private final List<Country> countries = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
         roles.add(Role.STUDENT);
         roles.add(Role.DOCTOR);
-        roles.add(Role.SPEAKER);
         roles.add(Role.ORGANIZER);
-        roles.add(Role.ADMIN);
 
         countries.add(Country.POLAND);
         countries.add(Country.USA);
@@ -64,8 +67,9 @@ class SymposiumApplicationTests {
 
         presentationRepository.deleteAll();
         conferenceHallRepository.deleteAll();
-        participantRepository.deleteAll();
         topicRepository.deleteAll();
+        participantRepository.deleteAll();
+
         hotelRepository.deleteAll();
 
         Hotel hotel = new Hotel();
@@ -78,17 +82,19 @@ class SymposiumApplicationTests {
         conferenceHall.setHotel(hotel);
         conferenceHallRepository.save(conferenceHall);
 
-        Topic topic = new Topic();
-        topic.setName("AI in Healthcare");
-        topicRepository.save(topic);
-
         participant = new Participant();
         participant.setFirstName("John");
         participant.setLastName("Doe");
         participant.setEmail("john.doe@gmail.com");
-        participant.setRole(Role.SPEAKER);
         participant.setCountry(Country.POLAND);
         participantRepository.save(participant);
+
+
+        Topic topic = new Topic();
+        topic.setName("AI in Healthcare");
+        topic.setPresenters(Set.of(participant));
+        topicRepository.save(topic);
+
 
         presentation = new Presentation();
         presentation.setStartTime(LocalDateTime.of(2025, 4, 29, 9, 0));
@@ -116,16 +122,16 @@ class SymposiumApplicationTests {
             participant.setFirstName("Participant" + i);
             participant.setLastName("LastName" + i);
             participant.setEmail("participant" + i + "@gmail.com");
-            participant.setRole(roles.get(i));
+            participant.setRole(roles.get(i % ROLES_COUNT));
             participant.setCountry(countries.get(i));
             participantRepository.save(participant);
         }
-        List<Participant> participants = participantRepository.findAll();
+        List<ParticipantDTO> participants = participantRepository.findAllAsDto();
         assertThat(participants).isNotEmpty();
         assertThat(participants.size()).isEqualTo(6);
-        assertThat(participants.getFirst().getFirstName()).isEqualTo("John");
-        participants.forEach(participant ->
-                log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
+        participants.forEach(participantDTO ->
+                log.info(participantDTO.toString())
+        );
         log.info("Test for showing all participants passed successfully.");
     }
 
@@ -138,28 +144,21 @@ class SymposiumApplicationTests {
             participant.setFirstName("Participant" + i);
             participant.setLastName("LastName" + i);
             participant.setEmail("participant" + i + "@gmail.com");
-            participant.setRole(roles.get(i % 5));
-            participant.setCountry(countries.get(i % 5));
+            participant.setRole(roles.get(i % ROLES_COUNT));
+            participant.setCountry(countries.get(i % COUNTRIES_COUNT));
             participantRepository.save(participant);
         }
 
-        List<Object[]> participants = participantRepository.findAllParticipantsWithRoles();
+        List<ParticipantDTO> participants = participantRepository.findAllParticipantsOrderedByRoles();
 
-        // Mapowanie i grupowanie uczestników według ról
-        Map<Role, List<Participant>> groupedByRole = participants.stream()
-                .collect(Collectors.groupingBy(
-                        obj -> (Role) obj[0], // Grupowanie według roli (pierwszy element tablicy)
-                        Collectors.mapping(
-                                obj -> (Participant) obj[1], // Mapowanie na uczestnika (drugi element tablicy)
-                                Collectors.toList()
-                        )
-                ));
+        Map<Role, List<ParticipantDTO>> groupedByRole = participants.stream()
+                .filter(p -> p.role() != null)
+                .collect(Collectors.groupingBy(ParticipantDTO::role));
 
-        // Wyświetlanie wyników
+        // Wyświetlanie pogrupowanych uczestników
         groupedByRole.forEach((role, participantList) -> {
             log.info("Role: {}", role);
-            participantList.forEach(participant ->
-                    log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
+            participantList.forEach(participant -> log.info(" - {}", participant));
         });
     }
 
@@ -172,28 +171,30 @@ class SymposiumApplicationTests {
             participant.setFirstName("Participant" + i);
             participant.setLastName("LastName" + i);
             participant.setEmail("participant" + i + "@gmail.com");
-            participant.setRole(roles.get(i % 5));
+            participant.setRole(roles.get(i % 3));
             participant.setCountry(countries.get(i % 5));
             participantRepository.save(participant);
         }
 
-        List<Participant> participants = participantRepository.findAll();
+        List<ParticipantDTO> participants = participantRepository.findAllAsDto();
 
         // Mapowanie i grupowanie uczestników według krajów
-        Map<Country, List<Participant>> groupedByCountry = participants.stream()
-                .collect(Collectors.groupingBy(Participant::getCountry));
+        Map<Country, List<ParticipantDTO>> groupedByCountry = participants.stream()
+                .collect(Collectors.groupingBy(ParticipantDTO::country));
 
         // Wyświetlanie wyników
         groupedByCountry.forEach((country, participantList) -> {
             log.info("Country: {}", country);
-            participantList.forEach(participant ->
-                    log.info("Participant: {} {} {}", participant.getFirstName(), participant.getLastName(), participant.getEmail()));
+            participantList.forEach(participantDTO -> {
+                log.info(participantDTO.toString());
+            });
         });
     }
 
+
     //4. Wyświetl listę tematów prezentacji.
     @Test
-    void testShowAllPresentationTopics(){
+    void testShowAllPresentationTopics() {
         log.info("------------testShowAllPresentationTopics------------");
         for (int i = 0; i < 5; i++) {
             Topic topic = new Topic();
@@ -207,19 +208,30 @@ class SymposiumApplicationTests {
             presentationRepository.save(presentation);
         }
 
-        List<Presentation> presentations = presentationRepository.findAll();
+        List<PresentationDTO> presentations = presentationRepository.findAllAsDto();
         assertThat(presentations).isNotEmpty();
 
-        presentations.forEach(presentation ->
-                log.info("Presentation: {} at {}", presentation.getTopic().getName(), presentation.getStartTime()));
+        presentations.forEach(presentationDTO ->
+                log.info(presentationDTO.toString()));
     }
 
     //5. Wyświetl użytkownika z największą liczbą prezentacji.
     @Test
     void testFindParticipantWithMostPresentations() {
         log.info("------------testFindParticipantWithMostPresentations------------");
-        // Add 5 additional presentations with John Doe as a speaker
-        for (int i = 0; i < 5; i++) {
+
+        // Inicjalizacja drugiego prezentera
+        Participant otherParticipant = new Participant();
+        otherParticipant.setFirstName("Jane");
+        otherParticipant.setLastName("Smith");
+        otherParticipant.setEmail("jane.smith@example.com");
+        otherParticipant.setRole(Role.STUDENT);
+        otherParticipant.setCountry(countries.get(0));
+        participantRepository.save(otherParticipant);
+
+        int totalPresentations = 5;
+
+        for (int i = 0; i < totalPresentations; i++) {
             Topic topic = new Topic();
             topic.setName("Topic " + i);
             topicRepository.save(topic);
@@ -229,39 +241,46 @@ class SymposiumApplicationTests {
             presentation.setConferenceHall(conferenceHall);
             presentation.setTopic(topic);
 
-            // Create 5 STUDENT participants
             List<Participant> students = new ArrayList<>();
-            for (int j = 0; j < 5; j++) {
+            for (int j = 0; j < 23; j++) {
                 Participant student = new Participant();
                 student.setFirstName("Student" + i + "_" + j);
                 student.setLastName("Last" + j);
                 student.setEmail("student" + i + "_" + j + "@example.com");
                 student.setRole(Role.STUDENT);
-                student.setCountry(participant.getCountry()); // or any Country
+                student.setCountry(countries.get(i % COUNTRIES_COUNT));
                 participantRepository.save(student);
                 students.add(student);
             }
 
-            // Add John Doe (speaker) and 5 students to the presentation
-            List<Participant> allParticipants = new ArrayList<>(students);
-            allParticipants.add(participant); // John Doe
+            Set<Participant> presenters = new HashSet<>();
+            if (i < 3) {
+                presenters.add(participant);
+            } else {
+                presenters.add(otherParticipant);
+            }
+            topic.setPresenters(presenters);
+            topicRepository.save(topic);
 
-            presentation.setParticipants(allParticipants);
+            // Dodaj obu do listy uczestników
+            students.add(participant);
+            students.add(otherParticipant);
+            presentation.setParticipants(students);
             presentationRepository.save(presentation);
         }
 
-        // Now John Doe has 1 (from @BeforeEach) + 5 = 6 presentations
-
-        List<SpeakerStatsDTO> topSpeakers = presentationRepository.findTopSpeaker(Pageable.ofSize(10));
+        List<SpeakerStatsDTO> topSpeakers = presentationRepository.findTopSpeaker(Pageable.ofSize(1));
 
         assertThat(topSpeakers).isNotEmpty();
         topSpeakers.forEach(speaker ->
                 log.info("Speaker: {} {} with {} presentations", speaker.firstName(), speaker.lastName(), speaker.presentationCount()));
+
         SpeakerStatsDTO top = topSpeakers.getFirst();
         assertThat(top.firstName()).isEqualTo("John");
         assertThat(top.lastName()).isEqualTo("Doe");
-        assertThat(top.presentationCount()).isEqualTo(6L);
+        assertThat(top.presentationCount()).isEqualTo(4L);
     }
+
 
     //6. Wyświetl liczbę prezentacji w każdej sali.
     @Test
@@ -306,7 +325,136 @@ class SymposiumApplicationTests {
         });
     }
 
+    @Test
+    void testShouldNotBeMoreThanOnePresentationAtSameTopicAndTime() {
+        log.info("------------testShouldNotBeMoreThanOnePresentationAtSameTopicAndTime------------");
 
+        // Create Conference Hall
+        ConferenceHall conferenceHall = new ConferenceHall();
+        conferenceHall.setName("Main Hall");
+        conferenceHallRepository.save(conferenceHall);
+
+        // Create one topic
+        Topic topic = new Topic();
+        topic.setName("Topic 1");
+        topicRepository.save(topic);
+
+        LocalDateTime startTime = LocalDateTime.of(2025, 4, 29, 10, 0);
+
+        // First presentation
+        Presentation presentation1 = new Presentation();
+        presentation1.setStartTime(startTime);
+        presentation1.setConferenceHall(conferenceHall);
+        presentation1.setTopic(topic);
+
+        // Second presentation with the same topic and time
+        Presentation presentation2 = new Presentation();
+        presentation2.setStartTime(startTime);
+        presentation2.setConferenceHall(this.conferenceHall); // optional, could be different
+        presentation2.setTopic(topic);
+
+        // Save first presentation
+        presentationRepository.save(presentation1);
+
+        // Saving the second should fail due to same topic + same time
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            presentationRepository.save(presentation2);
+        }, "A presentation with the same topic and time should not be allowed.");
+
+        log.info("Presentations with the same topic and time were not allowed — test passed.");
+    }
+
+    @Test
+    void testShouldNotBeMoreThanOnePresentationAtSameConferenceHallAndTime() {
+        log.info("------------testShouldNotBeMoreThanOnePresentationAtSameConferenceHallAndTime------------");
+
+        // Create Conference Hall
+        ConferenceHall conferenceHall = new ConferenceHall();
+        conferenceHall.setName("Main Hall");
+        conferenceHallRepository.save(conferenceHall);
+
+        // Create one topic
+        Topic topic = new Topic();
+        topic.setName("Topic 1");
+        topicRepository.save(topic);
+
+        // Create one topic
+        Topic another_topic = new Topic();
+        another_topic.setName("Topic 2");
+        topicRepository.save(another_topic);
+
+        LocalDateTime startTime = LocalDateTime.of(2025, 4, 29, 10, 0);
+
+        // First presentation
+        Presentation presentation1 = new Presentation();
+        presentation1.setStartTime(startTime);
+        presentation1.setConferenceHall(conferenceHall);
+        presentation1.setTopic(topic);
+
+        // Second presentation with the same topic and time
+        Presentation presentation2 = new Presentation();
+        presentation2.setStartTime(startTime);
+        presentation2.setConferenceHall(conferenceHall); // same conference hall
+        presentation2.setTopic(another_topic);
+
+        // Save first presentation
+        presentationRepository.save(presentation1);
+
+        // Saving the second should fail due to same topic + same time
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            presentationRepository.save(presentation2);
+        }, "A presentation with the same conference hall and time should not be allowed.");
+
+        log.info("Presentations with the same conference hall and time were not allowed — test passed.");
+    }
+
+    @Test
+    void testTwoSameTopicsCantExist() {
+        log.info("------------testTwoSameTopicsCantExist------------");
+        // Create one topic
+        Topic topic = new Topic();
+        topic.setName("Topic 1");
+        topicRepository.save(topic);
+
+        // Create one topic
+        Topic another_topic = new Topic();
+        another_topic.setName("Topic 1");
+
+        // Saving the second should fail due to same topic + same time
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            topicRepository.save(another_topic);
+        }, "A topic with the same name should not be allowed.");
+
+        log.info("Topics should be unique — test passed.");
+    }
+
+    @Test
+    void testShouldPresentationsNotExistWithSameTopics() {
+        log.info("------------testShouldPresentationsNotExistWithSameTopics------------");
+
+        // Create one topic
+        Topic topic = new Topic();
+        topic.setName("Topic 1");
+        topicRepository.save(topic);
+
+        // First presentation
+        Presentation presentation1 = new Presentation();
+        presentation1.setTopic(topic);
+
+        // Second presentation with the same topic and time
+        Presentation presentation2 = new Presentation();
+        presentation2.setTopic(topic);
+
+        // Save first presentation
+        presentationRepository.save(presentation1);
+
+        // Saving the second should fail due to same topic + same time
+        assertThrows(DataIntegrityViolationException.class, () -> {
+            presentationRepository.save(presentation2);
+        }, "A presentation with the same topic should not be allowed.");
+
+        log.info("Presentations with the same topics were not allowed — test passed.");
+    }
 
 
 }
